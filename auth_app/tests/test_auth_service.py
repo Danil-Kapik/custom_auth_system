@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import MagicMock
-from django.contrib.auth.hashers import check_password
+from django.contrib.auth.hashers import check_password, make_password
 from django.db import IntegrityError
 
 from auth_app.services import AuthService
@@ -91,3 +91,59 @@ class TestAuthService:
             auth_service.register_user(user_data)
 
         assert "Unable to register user" in str(exc.value)
+
+    def test_login_success(self, auth_service, mock_repo):
+        """Проверка успешного входа: валидные email и пароль создают сессию."""
+        user = MagicMock()
+        user.email = "test@mail.com"
+        user.password = make_password("secret123")
+        user.is_active = True
+
+        mock_repo.get_by_email.return_value = user
+        mock_session_repo = MagicMock()
+        mock_session = MagicMock(token="session-token")
+        mock_session_repo.create.return_value = mock_session
+
+        auth_service.session_repository = mock_session_repo
+
+        result = auth_service.login(
+            {"email": "test@mail.com", "password": "secret123"}
+        )
+
+        assert result == mock_session
+        mock_repo.get_by_email.assert_called_once_with("test@mail.com")
+        mock_session_repo.create.assert_called_once()
+
+    def test_login_invalid_password(self, auth_service, mock_repo):
+        """Проверка ошибки, если пароль неверный."""
+        user = MagicMock()
+        user.password = make_password("secret123")
+        user.is_active = True
+
+        mock_repo.get_by_email.return_value = user
+        mock_session_repo = MagicMock()
+        auth_service.session_repository = mock_session_repo
+
+        with pytest.raises(ValueError) as exc:
+            auth_service.login(
+                {"email": "test@mail.com", "password": "wrongpass"}
+            )
+
+        assert str(exc.value) == "Invalid email or password."
+        mock_session_repo.create.assert_not_called()
+
+    def test_login_inactive_user(self, auth_service, mock_repo):
+        """Проверка ошибки, если пользователь неактивен."""
+        user = MagicMock()
+        user.password = make_password("secret123")
+        user.is_active = False
+
+        mock_repo.get_by_email.return_value = user
+        auth_service.session_repository = MagicMock()
+
+        with pytest.raises(ValueError) as exc:
+            auth_service.login(
+                {"email": "test@mail.com", "password": "secret123"}
+            )
+
+        assert str(exc.value) == "Invalid email or password."

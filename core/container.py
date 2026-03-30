@@ -14,7 +14,10 @@ def get_session_repository():
 
 
 def get_auth_service():
-    return AuthService(user_repository=get_user_repository())
+    return AuthService(
+        user_repository=get_user_repository(),
+        session_repository=get_session_repository(),
+    )
 
 
 def get_role_repository():
