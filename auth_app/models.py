@@ -23,6 +23,11 @@ class User(models.Model):
         db_index=True,
         help_text="Указывает, может ли данный пользователь войти в систему.",
     )
+    is_deleted = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="Метка мягкого удаления пользователя.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

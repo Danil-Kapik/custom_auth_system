@@ -92,12 +92,80 @@ class TestAuthService:
 
         assert "Unable to register user" in str(exc.value)
 
+    def test_login_deleted_user(self, auth_service, mock_repo):
+        user = MagicMock()
+        user.password = make_password("secret123")
+        user.is_active = True
+        user.is_deleted = True
+
+        mock_repo.get_by_email.return_value = user
+        auth_service.session_repository = MagicMock()
+
+        with pytest.raises(ValueError) as exc:
+            auth_service.login(
+                {"email": "test@mail.com", "password": "secret123"}
+            )
+
+        assert str(exc.value) == "Invalid email or password."
+
+    def test_logout_removes_session(self, auth_service):
+        mock_session_repo = MagicMock()
+        auth_service.session_repository = mock_session_repo
+
+        auth_service.logout("token-value")
+
+        mock_session_repo.delete_by_token.assert_called_once_with(
+            "token-value"
+        )
+
+    def test_update_profile_success(self, auth_service, mock_repo):
+        user = MagicMock()
+        user.pk = 1
+
+        mock_repo.get_by_username.return_value = None
+        mock_repo.update.return_value = user
+
+        result = auth_service.update_profile(user, {"username": "newname"})
+
+        assert result == user
+        mock_repo.get_by_username.assert_called_once_with("newname")
+        mock_repo.update.assert_called_once_with(user, username="newname")
+
+    def test_update_profile_duplicate_username(self, auth_service, mock_repo):
+        user = MagicMock()
+        user.pk = 1
+        other_user = MagicMock()
+        other_user.pk = 2
+
+        mock_repo.get_by_username.return_value = other_user
+        auth_service.session_repository = MagicMock()
+
+        with pytest.raises(ValueError) as exc:
+            auth_service.update_profile(user, {"username": "taken"})
+
+        assert str(exc.value) == "A user with this username already exists."
+
+    def test_soft_delete_user(self, auth_service, mock_repo):
+        user = MagicMock()
+        user.pk = 1
+
+        mock_repo.soft_delete.return_value = user
+        mock_session_repo = MagicMock()
+        auth_service.session_repository = mock_session_repo
+
+        result = auth_service.soft_delete_user(user)
+
+        assert result == user
+        mock_session_repo.delete_by_user.assert_called_once_with(user)
+        mock_repo.soft_delete.assert_called_once_with(user)
+
     def test_login_success(self, auth_service, mock_repo):
         """Проверка успешного входа: валидные email и пароль создают сессию."""
         user = MagicMock()
         user.email = "test@mail.com"
         user.password = make_password("secret123")
         user.is_active = True
+        user.is_deleted = False
 
         mock_repo.get_by_email.return_value = user
         mock_session_repo = MagicMock()

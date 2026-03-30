@@ -16,7 +16,6 @@ class AuthService:
         if username and self.user_repository.exists_by_username(username):
             raise ValueError("A user with this username already exists.")
 
-        # Извлекаем сырой пароль, хешируем его и кладем обратно в данные
         raw_password = data.get("password")
         if not raw_password:
             raise ValueError("Password is required.")
@@ -38,7 +37,11 @@ class AuthService:
             raise ValueError("Email and password are required.")
 
         user = self.user_repository.get_by_email(email)
-        if not user or not user.is_active:
+        if (
+            not user
+            or not user.is_active
+            or getattr(user, "is_deleted", False)
+        ):
             raise ValueError("Invalid email or password.")
 
         if not check_password(password, user.password):
@@ -49,3 +52,28 @@ class AuthService:
 
         token = generate_token()
         return self.session_repository.create(user=user, token=token)
+
+    def logout(self, token):
+        if not token:
+            raise ValueError("Token is required for logout.")
+
+        if self.session_repository is None:
+            raise ValueError("Session repository is required for logout.")
+
+        self.session_repository.delete_by_token(token)
+
+    def update_profile(self, user, data):
+        username = data.get("username")
+        if username:
+            existed_user = self.user_repository.get_by_username(username)
+            if existed_user and existed_user.pk != user.pk:
+                raise ValueError("A user with this username already exists.")
+
+        return self.user_repository.update(user, **data)
+
+    def soft_delete_user(self, user):
+        if self.session_repository is None:
+            raise ValueError("Session repository is required for soft delete.")
+
+        self.session_repository.delete_by_user(user)
+        return self.user_repository.soft_delete(user)

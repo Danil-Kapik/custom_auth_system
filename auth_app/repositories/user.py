@@ -34,3 +34,6 @@ class UserRepository:
 
     def delete(self, instance):
         instance.delete()
+
+    def soft_delete(self, instance):
+        return self.update(instance, is_deleted=True, is_active=False)

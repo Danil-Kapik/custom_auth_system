@@ -29,3 +29,9 @@ class SessionRepository:
 
     def delete(self, instance):
         instance.delete()
+
+    def delete_by_token(self, token):
+        return self.model.objects.filter(token=token).delete()
+
+    def delete_by_user(self, user):
+        return self.model.objects.filter(user=user).delete()
