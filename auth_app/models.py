@@ -15,6 +15,7 @@ class User(models.Model):
         unique=True,
         help_text="Обязательно, не более 150 символов.",
     )
+    password = models.CharField(max_length=128)
     first_name = models.CharField(max_length=NAME_MAX_LENGTH, blank=True)
     last_name = models.CharField(max_length=NAME_MAX_LENGTH, blank=True)
     is_active = models.BooleanField(

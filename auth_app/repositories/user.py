@@ -11,6 +11,12 @@ class UserRepository:
     def get_by_email(self, email):
         return self.model.objects.filter(email=email).first()
 
+    def exists_by_email(self, email: str) -> bool:
+        return self.model.objects.filter(email=email).exists()
+
+    def exists_by_username(self, username: str) -> bool:
+        return self.model.objects.filter(username=username).exists()
+
     def filter(self, **filters):
         return self.model.objects.filter(**filters)
 
